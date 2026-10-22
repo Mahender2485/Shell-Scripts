@@ -7,12 +7,30 @@ hosted_zone_id="Z05213281AEN8G0889PWV"
 
 for instance in $@
 do
+
+    echo "Creating security group for $instance"
+
+    sg_id=$(aws ec2 create-security-group \
+        --group-name "roboshop-$instance" \
+        --description "Security group for roboshop $instance" \
+        --query 'GroupId' \
+        --output text) || exit 1
+        echo "Security group ID: $sg_id"
+
+    echo "Allow Port 27017 for $instance"
+
+    aws ec2 authorize-security-group-ingress \
+        --group-id $sg_id \
+        --protocol tcp \
+        --port 27017 \
+        --cidr 0.0.0.0/0 || exit 1
+
     echo "Creating instance: $instance"
 
     instance_id=$(aws ec2 run-instances \
             --image-id $ami_id \
             --instance-type $instance_type \
-            --security-groups "roboshop-common" "roboshop-$instance" \
+            --security-groups "roboshop-common" "${sg_id}" \
             --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=roboshop-$instance}]" \
             --query 'Instances[0].InstanceId' \
             --output text
